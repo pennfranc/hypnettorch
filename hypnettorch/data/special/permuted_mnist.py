@@ -28,6 +28,7 @@ permuted MNIST dataset.
 """
 import copy
 import numpy as np
+import torch
 
 from hypnettorch.data.mnist_data import MNISTData
 
@@ -102,16 +103,19 @@ class PermutedMNISTList():
             during developement such that a proper use of this list is
             ensured. **Note** You may never work with two elements of this
             list at a time.
+        cl_mode: The mode of incremental learning that will be used.
+            Should be equal to 'domain' or 'class'.
     """
     def __init__(self, permutations, data_path, use_one_hot=True,
                  validation_size=0, padding=0, trgt_padding=None,
-                 show_perm_change_msg=True):
+                 show_perm_change_msg=True, cl_mode='domain'):
         print('Loading MNIST into memory, that is shared among %d permutation '
               % (len(permutations)) + 'tasks.')
 
         self._data = PermutedMNIST(data_path, use_one_hot=use_one_hot,
             validation_size=validation_size, permutation=None, padding=padding,
-            trgt_padding=trgt_padding)
+            trgt_padding=trgt_padding, cl_mode=cl_mode,
+            num_permutations=len(permutations))
 
         self._permutations = permutations
 
@@ -189,6 +193,7 @@ class PermutedMNISTList():
             self._batch_gens_val[self._active_perm] = self._data._batch_gen_val
 
         self._data.permutation = self._permutations[index]
+        self._data.active_perm = index
         self._data._batch_gen_train = self._batch_gens_train[index]
         self._data._batch_gen_test = self._batch_gens_test[index]
         self._data._batch_gen_val = self._batch_gens_val[index]
@@ -237,6 +242,10 @@ class PermutedMNIST(MNISTData):
             permutation of the form
             :code:`np.random.permutation((28+2*padding)**2)`
         padding: The amount of padding that should be applied to images.
+        cl_mode: The mode of incremental learning that will be used.
+            Should be equal to 'domain' or 'class'.
+        num_permutations: The length of the list of permutations that
+            `permutation` belongs to.
 
             .. note::
                 The padding is currently not reflected in the
@@ -250,7 +259,8 @@ class PermutedMNIST(MNISTData):
             fit the new number of classes.
     """
     def __init__(self, data_path, use_one_hot=True, validation_size=0,
-                 permutation=None, padding=0, trgt_padding=None):
+                 permutation=None, padding=0, trgt_padding=None, cl_mode='domain',
+                 num_permutations=1):
         # Note, image data augmentation doesn't make sense for a dataset that
         # can't be view as images due to the random permutations.
         super().__init__(data_path, use_one_hot=use_one_hot,
@@ -259,6 +269,8 @@ class PermutedMNIST(MNISTData):
 
         self._padding = padding
         self._input_dim = (28+padding*2)**2
+        self.cl_mode = cl_mode
+        self.num_permutations = num_permutations
 
         self._permutation = permutation # See setter below.
 
@@ -273,6 +285,9 @@ class PermutedMNIST(MNISTData):
                 out_data = self._data['out_data']
                 self._data['out_data'] = np.concatenate((out_data,
                     np.zeros((out_data.shape[0], trgt_padding))), axis=1)
+        
+        # Index of the currently active permutation.
+        self._active_perm = -1
 
     @property
     def permutation(self):
@@ -344,6 +359,21 @@ class PermutedMNIST(MNISTData):
             return MNISTData.input_to_torch_tensor(self, x, device, mode=mode,
                 force_no_preprocessing=force_no_preprocessing,
                 sample_ids=sample_ids)
+    
+    def output_to_torch_tensor(self, y, device, mode='inference',
+                               force_no_preprocessing=False, sample_ids=None):
+        """Overriding method from `Dataset` class to allow for expanded
+        output dimensions for the class-IL case.
+        """
+        if self.cl_mode == 'class':
+            num_tasks = self.num_permutations
+            current_task = self._active_perm
+            label_within_task = y.argmax()
+            new_one_hot_idx = 10 * current_task + label_within_task
+            y_new = np.zeros((y.shape[0], num_tasks * 10))
+            y_new[:, new_one_hot_idx] = 1
+            y = y_new
+        return torch.from_numpy(y).float().to(device)
 
     @staticmethod
     def torch_input_transforms(permutation=None, padding=0):
