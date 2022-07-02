@@ -34,7 +34,7 @@ from hypnettorch.data.special.split_cifar import _transform_split_outputs
 def get_split_mnist_handlers(data_path, use_one_hot=True, validation_size=0,
                              use_torch_augmentation=False,
                              num_classes_per_task=2, num_tasks=None,
-                             trgt_padding=None, cl_mode='domain', autoencoding=False):
+                             trgt_padding=None, cl_mode='domain'):
     """This function instantiates 5 objects of the class :class:`SplitMNIST`
     which will contain a disjoint set of labels.
 
@@ -58,8 +58,6 @@ def get_split_mnist_handlers(data_path, use_one_hot=True, validation_size=0,
             :class:`SplitMNIST`.
         cl_mode (str, optional): The mode of incremental learning that will be
             used. Should be equal to 'domain' or 'class'.
-        autoencoding (bool): Whether the targets should correspond to the input
-            images.
 
     Returns:
         (list): A list of data handlers, each corresponding to a
@@ -82,8 +80,7 @@ def get_split_mnist_handlers(data_path, use_one_hot=True, validation_size=0,
         handlers.append(SplitMNIST(data_path, use_one_hot=use_one_hot,
             use_torch_augmentation=use_torch_augmentation,
             validation_size=validation_size, labels=range(i, i+steps),
-            trgt_padding=trgt_padding, full_out_dim=(cl_mode == 'class'),
-            autoencoding=autoencoding))
+            trgt_padding=trgt_padding, full_out_dim=(cl_mode == 'class')))
 
         if len(handlers) == num_tasks:
             break
