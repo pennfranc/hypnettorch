@@ -34,7 +34,8 @@ from hypnettorch.data.special.split_cifar import _transform_split_outputs
 def get_split_fashion_mnist_handlers(data_path, use_one_hot=True, validation_size=0,
                              use_torch_augmentation=False,
                              num_classes_per_task=2, num_tasks=None,
-                             trgt_padding=None, cl_mode='domain'):
+                             trgt_padding=None, cl_mode='domain',
+                             permute_labels=False):
     """This function instantiates 5 objects of the class :class:`SplitFashionMNIST`
     which will contain a disjoint set of labels.
 
@@ -76,10 +77,11 @@ def get_split_fashion_mnist_handlers(data_path, use_one_hot=True, validation_siz
 
     handlers = []
     steps = num_classes_per_task
+    label_arr = np.random.permutation(10) if permute_labels else range(10)
     for i in range(0, 10, steps):
         handlers.append(SplitFashionMNIST(data_path, use_one_hot=use_one_hot,
             use_torch_augmentation=use_torch_augmentation,
-            validation_size=validation_size, labels=range(i, i+steps),
+            validation_size=validation_size, labels=label_arr[i:i+steps],
             trgt_padding=trgt_padding, full_out_dim=(cl_mode == 'class')))
 
         if len(handlers) == num_tasks:
