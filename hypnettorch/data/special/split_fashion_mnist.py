@@ -35,7 +35,7 @@ def get_split_fashion_mnist_handlers(data_path, use_one_hot=True, validation_siz
                              use_torch_augmentation=False,
                              num_classes_per_task=2, num_tasks=None,
                              trgt_padding=None, cl_mode='domain',
-                             permute_labels=False):
+                             permute_labels=False, custom_permutation=None):
     """This function instantiates 5 objects of the class :class:`SplitFashionMNIST`
     which will contain a disjoint set of labels.
 
@@ -78,6 +78,10 @@ def get_split_fashion_mnist_handlers(data_path, use_one_hot=True, validation_siz
     handlers = []
     steps = num_classes_per_task
     label_arr = np.random.permutation(10) if permute_labels else range(10)
+
+    if custom_permutation:
+        label_arr = custom_permutation
+
     for i in range(0, 10, steps):
         handlers.append(SplitFashionMNIST(data_path, use_one_hot=use_one_hot,
             use_torch_augmentation=use_torch_augmentation,

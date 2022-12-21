@@ -34,7 +34,9 @@ from hypnettorch.data.special.split_cifar import _transform_split_outputs
 def get_split_mnist_handlers(data_path, use_one_hot=True, validation_size=0,
                              use_torch_augmentation=False,
                              num_classes_per_task=2, num_tasks=None,
-                             trgt_padding=None, cl_mode='domain'):
+                             trgt_padding=None, cl_mode='domain',
+                             kmnist=False, permute_labels=False,
+                             custom_permutation=None,):
     """This function instantiates 5 objects of the class :class:`SplitMNIST`
     which will contain a disjoint set of labels.
 
@@ -58,6 +60,15 @@ def get_split_mnist_handlers(data_path, use_one_hot=True, validation_size=0,
             :class:`SplitMNIST`.
         cl_mode (str, optional): The mode of incremental learning that will be
             used. Should be equal to 'domain' or 'class'.
+        kmnist (bool):
+            Whether to use the Kuzushiji MNIST dataset as a drop-in for the
+            regular MNIST dataset.
+        permute_labels (bool):
+            Whether to randomly permute the labels before creating tasks, thus
+            making both the tasks themselves and their order random.
+        custom_permutation (list):
+            If provided, the list will be interpreted as a permutation of range(10)
+            which will be used to rearrange the labels.s
 
     Returns:
         (list): A list of data handlers, each corresponding to a
@@ -76,11 +87,17 @@ def get_split_mnist_handlers(data_path, use_one_hot=True, validation_size=0,
 
     handlers = []
     steps = num_classes_per_task
+    label_arr = np.random.permutation(10) if permute_labels else range(10)
+
+    if custom_permutation:
+        label_arr = custom_permutation
+
     for i in range(0, 10, steps):
         handlers.append(SplitMNIST(data_path, use_one_hot=use_one_hot,
             use_torch_augmentation=use_torch_augmentation,
-            validation_size=validation_size, labels=range(i, i+steps),
-            trgt_padding=trgt_padding, full_out_dim=(cl_mode == 'class')))
+            validation_size=validation_size, labels=label_arr[i:i+steps],
+            trgt_padding=trgt_padding, full_out_dim=(cl_mode == 'class'),
+            kmnist=kmnist))
 
         if len(handlers) == num_tasks:
             break
@@ -112,13 +129,16 @@ class SplitMNIST(MNISTData):
             ``len(labels) + trgt_padding`` classes. However, all padded classes
             have no input instances. Note, that 1-hot encodings are padded to
             fit the new number of classes.
+        kmnist (bool):
+            Whether to use the Kuzushiji MNIST dataset as a drop-in for the
+            regular MNIST dataset.
     """
     def __init__(self, data_path, use_one_hot=False, validation_size=1000,
                  use_torch_augmentation=False, labels=[0, 1],
-                 full_out_dim=False, trgt_padding=None):
+                 full_out_dim=False, trgt_padding=None, kmnist=False):
         # Note, we build the validation set below!
         super().__init__(data_path, use_one_hot=use_one_hot,
-             use_torch_augmentation=use_torch_augmentation, validation_size=0)
+             use_torch_augmentation=use_torch_augmentation, validation_size=0, kmnist=kmnist)
 
         self._full_out_dim = full_out_dim
 
