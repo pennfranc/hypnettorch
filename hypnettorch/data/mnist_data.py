@@ -77,19 +77,28 @@ class MNISTData(Dataset):
                 If activated, the statistics of test samples are changed as
                 a normalization is applied.
     """
-    _DOWNLOAD_PATH = 'http://yann.lecun.com/exdb/mnist/'
+    
     _TRAIN_IMGS_FN = 'train-images-idx3-ubyte.gz'
     _TRAIN_LBLS_FN = 'train-labels-idx1-ubyte.gz'
     _TEST_IMGS_FN = 't10k-images-idx3-ubyte.gz'
     _TEST_LBLS_FN = 't10k-labels-idx1-ubyte.gz'
     # In which file do we dump the dataset, to allow a faster readout next
     # time?
-    _MNIST_DATA_DUMP = 'mnist_dataset.pickle'
-    # In which subfolder of the datapath should the data be stored.
-    _SUBFOLDER = 'MNIST'
+
 
     def __init__(self, data_path, use_one_hot=False, validation_size=5000,
-                 use_torch_augmentation=False):
+                 use_torch_augmentation=False, kmnist=False):
+        
+        if kmnist:
+            self._download_path = 'http://codh.rois.ac.jp/kmnist/dataset/kmnist/'
+            self._subfolder = 'KMNIST'
+            self._mnist_data_dump = 'kmnist_dataset.pickle'
+            print('using kmnist')
+        else:
+            self._download_path = 'http://yann.lecun.com/exdb/mnist/'
+            self._subfolder = 'MNIST'
+            self._mnist_data_dump = 'mnist_dataset.pickle'
+
         super().__init__()
 
         start = time.time()
@@ -97,7 +106,7 @@ class MNISTData(Dataset):
         print('Reading MNIST dataset ...')
 
         # Actual data path
-        data_path = os.path.join(data_path, MNISTData._SUBFOLDER)
+        data_path = os.path.join(data_path, self._subfolder)
 
         if not os.path.exists(data_path):
             print('Creating directory "%s" ...' % (data_path))
@@ -105,7 +114,7 @@ class MNISTData(Dataset):
 
         # If data has been processed before.
         build_from_scratch = True
-        dump_fn = os.path.join(data_path, MNISTData._MNIST_DATA_DUMP)
+        dump_fn = os.path.join(data_path, self._mnist_data_dump)
         if os.path.isfile(dump_fn):
             build_from_scratch = False
 
@@ -138,7 +147,7 @@ class MNISTData(Dataset):
 
             if not os.path.exists(train_images_fn):
                 print('Downloading training images ...')
-                urllib.request.urlretrieve(MNISTData._DOWNLOAD_PATH + \
+                urllib.request.urlretrieve(self._download_path + \
                                            MNISTData._TRAIN_IMGS_FN, \
                                            train_images_fn)
 
@@ -150,19 +159,19 @@ class MNISTData(Dataset):
 
             if not os.path.exists(train_labels_fn):
                 print('Downloading training labels ...')
-                urllib.request.urlretrieve(MNISTData._DOWNLOAD_PATH + \
+                urllib.request.urlretrieve(self._download_path + \
                                            MNISTData._TRAIN_LBLS_FN, \
                                            train_labels_fn)
 
             if not os.path.exists(test_images_fn):
                 print('Downloading test images ...')
-                urllib.request.urlretrieve(MNISTData._DOWNLOAD_PATH + \
+                urllib.request.urlretrieve(self._download_path + \
                                            MNISTData._TEST_IMGS_FN, \
                                            test_images_fn)
 
             if not os.path.exists(test_labels_fn):
                 print('Downloading test labels ...')
-                urllib.request.urlretrieve(MNISTData._DOWNLOAD_PATH + \
+                urllib.request.urlretrieve(self._download_path + \
                                            MNISTData._TEST_LBLS_FN, \
                                            test_labels_fn)
 

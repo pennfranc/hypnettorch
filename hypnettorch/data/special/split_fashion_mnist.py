@@ -20,70 +20,60 @@
 # @version         :1.0
 # @python_version  :3.6.7
 """
-Split MNIST Dataset
+Split Fashion MNIST Dataset
 ^^^^^^^^^^^^^^^^^^^
 
 The module :mod:`data.special.split_mnist` contains a wrapper for data
-handlers for the SplitMNIST task.
+handlers for the SplitFashionMNIST task.
 """
 import numpy as np
 
-from hypnettorch.data.mnist_data import MNISTData
+from hypnettorch.data.fashion_mnist import FashionMNISTData
 from hypnettorch.data.special.split_cifar import _transform_split_outputs
 
-def get_split_mnist_handlers(data_path, use_one_hot=True, validation_size=0,
+def get_split_fashion_mnist_handlers(data_path, use_one_hot=True, validation_size=0,
                              use_torch_augmentation=False,
                              num_classes_per_task=2, num_tasks=None,
                              trgt_padding=None, cl_mode='domain',
-                             kmnist=False, permute_labels=False,
-                             custom_permutation=None,):
-    """This function instantiates 5 objects of the class :class:`SplitMNIST`
+                             permute_labels=False, custom_permutation=None):
+    """This function instantiates 5 objects of the class :class:`SplitFashionMNIST`
     which will contain a disjoint set of labels.
 
-    The SplitMNIST task consists of 5 tasks corresponding to the images with
+    The SplitFashionMNIST task consists of 5 tasks corresponding to the images with
     labels [0,1], [2,3], [4,5], [6,7], [8,9].
 
     Args:
-        data_path: Where should the MNIST dataset be read from? If not existing,
+        data_path: Where should the FashionMNIST dataset be read from? If not existing,
             the dataset will be downloaded into this folder.
         use_one_hot: Whether the class labels should be represented in a one-hot
             encoding.
         validation_size: The size of the validation set of each individual
             data handler.
         use_torch_augmentation (bool): See docstring of class
-            :class:`data.mnist_data.MNISTData`.
+            :class:`data.fashion_mnist.FashionMNISTData`.
         num_classes_per_task (int): Number of classes to put into one data
             handler. If ``2``, then every data handler will include 2 digits.
         num_tasks (int, optional): The number of data handlers that should be
             returned by this function.
         trgt_padding (int, optional): See docstring of class
-            :class:`SplitMNIST`.
+            :class:`SplitFashionMNIST`.
         cl_mode (str, optional): The mode of incremental learning that will be
             used. Should be equal to 'domain' or 'class'.
-        kmnist (bool):
-            Whether to use the Kuzushiji MNIST dataset as a drop-in for the
-            regular MNIST dataset.
-        permute_labels (bool):
-            Whether to randomly permute the labels before creating tasks, thus
-            making both the tasks themselves and their order random.
-        custom_permutation (list):
-            If provided, the list will be interpreted as a permutation of range(10)
-            which will be used to rearrange the labels.s
 
     Returns:
         (list): A list of data handlers, each corresponding to a
-        :class:`SplitMNIST` object.
+        :class:`SplitFashionMNIST` object.
     """
     assert num_tasks is None or num_tasks > 0
     if num_tasks is None:
         num_tasks = 10 // num_classes_per_task
 
     if not (num_tasks >= 1 and (num_tasks * num_classes_per_task) <= 10):
-        raise ValueError('Cannot create SplitMNIST datasets for %d tasks ' \
+        raise ValueError('Cannot create SplitFashionMNIST datasets for %d tasks ' \
                          % (num_tasks) + 'with %d classes per task.' \
                          % (num_classes_per_task))
 
-    print('Creating %d data handlers for SplitMNIST tasks ...' % num_tasks)
+    print('Creating %d data handlers for SplitFashionMNIST tasks ...' % num_tasks)
 
     handlers = []
     steps = num_classes_per_task
@@ -93,21 +83,20 @@ def get_split_mnist_handlers(data_path, use_one_hot=True, validation_size=0,
         label_arr = custom_permutation
 
     for i in range(0, 10, steps):
-        handlers.append(SplitMNIST(data_path, use_one_hot=use_one_hot,
+        handlers.append(SplitFashionMNIST(data_path, use_one_hot=use_one_hot,
             use_torch_augmentation=use_torch_augmentation,
             validation_size=validation_size, labels=label_arr[i:i+steps],
-            trgt_padding=trgt_padding, full_out_dim=(cl_mode == 'class'),
-            kmnist=kmnist))
+            trgt_padding=trgt_padding, full_out_dim=(cl_mode == 'class')))
 
         if len(handlers) == num_tasks:
             break
 
-    print('Creating data handlers for SplitMNIST tasks ... Done')
+    print('Creating data handlers for SplitFashionMNIST tasks ... Done')
 
     return handlers
 
-class SplitMNIST(MNISTData):
-    """An instance of the class shall represent a SplitMNIST task.
+class SplitFashionMNIST(FashionMNISTData):
+    """An instance of the class shall represent a SplitFashionMNIST task.
 
     Args:
         data_path (str): Where should the dataset be read from? If not existing,
@@ -118,7 +107,7 @@ class SplitMNIST(MNISTData):
             samples will be taking from the training set (the first :math:`n`
             samples).
         use_torch_augmentation (bool): See docstring of class
-            :class:`data.mnist_data.MNISTData`.
+            :class:`data.fashion_mnist.FashionMNISTData`.
         labels (list): The labels that should be part of this task.
         full_out_dim (bool): Choose the original MNIST instead of the new
             task output dimension. This option will affect the attributes
@@ -129,16 +118,13 @@ class SplitMNIST(MNISTData):
             ``len(labels) + trgt_padding`` classes. However, all padded classes
             have no input instances. Note, that 1-hot encodings are padded to
             fit the new number of classes.
-        kmnist (bool):
-            Whether to use the Kuzushiji MNIST dataset as a drop-in for the
-            regular MNIST dataset.
     """
     def __init__(self, data_path, use_one_hot=False, validation_size=1000,
                  use_torch_augmentation=False, labels=[0, 1],
-                 full_out_dim=False, trgt_padding=None, kmnist=False):
+                 full_out_dim=False, trgt_padding=None):
         # Note, we build the validation set below!
         super().__init__(data_path, use_one_hot=use_one_hot,
-             use_torch_augmentation=use_torch_augmentation, validation_size=0, kmnist=kmnist)
+             use_torch_augmentation=use_torch_augmentation, validation_size=0)
 
         self._full_out_dim = full_out_dim
 
@@ -232,7 +218,7 @@ class SplitMNIST(MNISTData):
             n_val = val_inds.size
 
         if trgt_padding is not None and trgt_padding > 0:
-            print('SplitMNIST targets will be padded with %d zeroes.' \
+            print('SplitFashionMNIST targets will be padded with %d zeroes.' \
                   % trgt_padding)
             self._data['num_classes'] += trgt_padding
 
@@ -243,7 +229,7 @@ class SplitMNIST(MNISTData):
                 self._data['out_data'] = np.concatenate((out_data,
                     np.zeros((out_data.shape[0], trgt_padding))), axis=1)
 
-        print('Created SplitMNIST task with labels %s and %d train, %d test '
+        print('Created SplitFashionMNIST task with labels %s and %d train, %d test '
               % (str(labels), train_inds.size, test_inds.size) +
               'and %d val samples.' % (n_val))
 
@@ -270,7 +256,7 @@ class SplitMNIST(MNISTData):
 
     def get_identifier(self):
         """Returns the name of the dataset."""
-        return 'SplitMNIST'
+        return 'SplitFashionMNIST'
 
 if __name__ == '__main__':
     pass
